@@ -1,0 +1,39 @@
+name: Semgrep
+
+on:
+  pull_request: {}
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - .github/workflows/semgrep.yml
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: semgrep/ci
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+      
+    steps:
+      - uses: actions/checkout@v4
+      - name: Semgrep with Community Rules
+        run: semgrep scan --oss-only --quiet --disable-version-check --json --json-output=${{ runner.temp }}/semgrep-community.json .
+        env:
+          SEMGREP_RULES: auto
+      - name: Semgrep with Boost Curated Rules
+        run: semgrep scan --oss-only --quiet --disable-version-check --json --json-output==${{ runner.temp }}/semgrep-boost.json .
+        env:
+          SEMGREP_RULES: https://assets.build.boostsecurity.io/semgrep-canary/all-sast-rules.yml
+      - name: Upload json artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: semgrep-results
+          path: |
+            ${{ runner.temp }}/semgrep-community.json
+            ${{ runner.temp }}/semgrep-boost.json
